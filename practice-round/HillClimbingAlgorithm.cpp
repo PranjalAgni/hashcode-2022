@@ -66,13 +66,20 @@ int score(unordered_set<string>& ingridientsSet, vector<Customer>& customerList)
 	return score;
 }
 
-// prints the output to the output.txt file
-void printOutput(vector<string>& answer) {
-	int N = answer.size();
-	cout << N << " ";
-	for (string& ingridient : answer) {
-		cout << ingridient << " ";
+// writes the output to the output-score.txt file
+void writeOutput(Solution& solution) {
+	ofstream fout;
+	string fileName = "output-" + to_string(solution.goodCustomers.size());
+	fout.open(fileName, ios::out);
+
+	if (fout) {
+		fout << solution.ingridients.size() << " ";
+		for (auto& ing : solution.ingridients) {
+			fout << ing << " ";
+		}
 	}
+
+	fout.close();
 };
 
 vector<Customer> prepareCustomerList() {
@@ -113,6 +120,39 @@ unordered_set<string> getIngridients(vector<Customer>& customerList) {
 	return ingridientsSet;
 }
 
+unordered_set<string> getIngridientsFromFile(string fileName) {
+	unordered_set<string> ingridients;
+	fstream fio;
+	string line;
+
+	fio.open(fileName, ios::in);
+	if (fio.is_open()) {
+		string word;
+		getline(fio, line);
+		istringstream ss(line);
+		bool isFirst = true;
+		while (ss >> word) {
+			if (isFirst) {
+				isFirst = false;
+				continue;
+			}
+			ingridients.insert(word);
+		}
+	}
+
+	fio.close();
+	return ingridients;
+}
+
+unordered_map<int, Customer> buildIdVsCustomerMap(vector<Customer>& customerList) {
+	unordered_map<int, Customer> idVsCustomerMap;
+	for (Customer& customer : customerList) {
+		idVsCustomerMap[customer.customerId] = customer;
+	}
+
+	return idVsCustomerMap;
+}
+
 // initalizes a solution containing good and bad customers
 // good customers - who have 0 dislike ingridients
 // bad customers - who are not good customers
@@ -120,7 +160,7 @@ Solution initalizeSolution(vector<Customer>& customerList, unordered_set<string>
 	unordered_set<int> goodCustomers;
 	unordered_set<int> unusedCustomers;
 	for (Customer& customer : customerList) {
-		if (customer.dislikedIngridients.size() == 0) {
+		if (isHappyCustomer(customer, ingridientsSet)) {
 			goodCustomers.insert(customer.customerId);
 		} else {
 			unusedCustomers.insert(customer.customerId);
@@ -131,11 +171,62 @@ Solution initalizeSolution(vector<Customer>& customerList, unordered_set<string>
 	return solution;
 }
 
-int hillClimbingOptimization(Solution& solution) {
+Solution hillClimbingOptimization(Solution& solution, vector<Customer>& customerList) {
 	int retry = 0;
-	while (retry < 100000) {
+	unordered_map<int, Customer> idVsCustomerMap = buildIdVsCustomerMap(customerList);
 
+	// current score
+	int currentScore = score(solution.ingridients, customerList);
+
+	while (retry < 500) {
+		retry += 1;
+
+		// number of unused customers
+		int N = solution.unusedCustomers.size();
+		// generate random number between 0 to N-1
+		int randomIndex = rand() % N;
+		// get the customer belonging to randomIndex in unusedCustomers set
+		unordered_set<int>::iterator it = solution.unusedCustomers.begin();
+		advance(it, randomIndex);
+		int customerId = *it;
+		// selected random customer
+		Customer& customer = idVsCustomerMap[customerId];
+
+		unordered_set<string> currentIngridients = solution.ingridients;
+
+		// remove dislike elements
+		for (string& ing : customer.dislikedIngridients) {
+			if (currentIngridients.find(ing) != currentIngridients.end()) {
+				currentIngridients.erase(ing);
+			}
+		}
+
+		// add like elements
+		for (string& ing : customer.likedIngridients) {
+			if (currentIngridients.find(ing) == currentIngridients.end()) {
+				currentIngridients.insert(ing);
+			}
+		}
+
+		unordered_set<int> newHappyCustomers;
+		unordered_set<int> newUnusedCustomers;
+
+		for (Customer& customer : customerList) {
+			if (isHappyCustomer(customer, currentIngridients)) {
+				newHappyCustomers.insert(customer.customerId);
+			} else {
+				newUnusedCustomers.insert(customer.customerId);
+			}
+		}
+
+		if (newHappyCustomers.size() >= currentScore) {
+			currentScore = newHappyCustomers.size();
+			cout << "Found a better score: " << currentScore << endl;
+			solution = {newHappyCustomers, newUnusedCustomers, currentIngridients};
+		}
 	}
+
+	return solution;
 }
 
 int main() {
@@ -152,14 +243,13 @@ int main() {
 	vector<Customer> customerList = prepareCustomerList();
 
 	// ingridients set
-	unordered_set<string> ingridientsSet = getIngridients(customerList);
+	unordered_set<string> ingridientsSet = getIngridientsFromFile("output-1805");
 
 	// initial solution
 	Solution solution = initalizeSolution(customerList, ingridientsSet);
 
-	int currentScore = score(solution.ingridients, customerList);
-
-	hillClimbingOptimization(solution);
+	solution = hillClimbingOptimization(solution, customerList);
+	writeOutput(solution);
 	return 0;
 }
 
