@@ -31,7 +31,7 @@ struct Customer {
 
 
 // Local simulator function, which tells the score of generated output
-void simulator(unordered_map<string, bool>& answerMap, vector<Customer>& customerList) {
+int simulator(unordered_map<string, bool>& answerMap, vector<Customer>& customerList) {
 	int score = 0;
 	for (Customer& customer : customerList) {
 		bool isHappy = true;
@@ -54,7 +54,8 @@ void simulator(unordered_map<string, bool>& answerMap, vector<Customer>& custome
 		if (isHappy) score += 1;
 	}
 
-	debug(score);
+	// debug(score);
+	return score;
 }
 
 // prints the output to the output.txt file
@@ -107,51 +108,48 @@ int main() {
 	}
 
 
-	unordered_map<string, int> likedIngridientsMap;
-	unordered_map<string, int> dislikedIngridientsMap;
-	unordered_set<string> ingridientsSet;
-	vector<string> optimalIngridients;
-	unordered_map<string, bool> optimalIngridientsMap;
+	int attempts = 10000;
+	int bestScore = INT_MIN;
+	while (attempts-- > 0) {
+		unordered_map<string, int> likedIngridientsMap;
+		unordered_map<string, int> dislikedIngridientsMap;
+		unordered_set<string> ingridientsSet;
+		vector<string> optimalIngridients;
+		unordered_map<string, bool> optimalIngridientsMap;
 
 
-	sort(customerList.begin(), customerList.end(), comparator);
-
-	for (Customer& customer : customerList) {
-		bool isHappy = true;
-
-		for (string& ingridient : customer.dislikedIngridients) {
-			if (optimalIngridientsMap.find(ingridient) != optimalIngridientsMap.end()) {
-				isHappy = false;
-				break;
-			}
+		int times = 1;
+		while (times-- > 0) {
+			random_shuffle(customerList.begin(), customerList.end());
 		}
 
-		if (isHappy) {
-			for (string& ingridient : customer.likedIngridients) {
-				if (optimalIngridientsMap.find(ingridient) == optimalIngridientsMap.end()) {
-					optimalIngridients.push_back(ingridient);
-					optimalIngridientsMap[ingridient] = true;
+		for (Customer& customer : customerList) {
+			bool isHappy = true;
+
+			for (string& ingridient : customer.dislikedIngridients) {
+				if (optimalIngridientsMap.find(ingridient) != optimalIngridientsMap.end()) {
+					isHappy = false;
+					break;
+				}
+			}
+
+			if (isHappy) {
+				for (string& ingridient : customer.likedIngridients) {
+					if (optimalIngridientsMap.find(ingridient) == optimalIngridientsMap.end()) {
+						optimalIngridients.push_back(ingridient);
+						optimalIngridientsMap[ingridient] = true;
+					}
 				}
 			}
 		}
+
+		int score = simulator(optimalIngridientsMap, customerList);
+		bestScore = max(bestScore, score);
+		// printOutput(optimalIngridients);
 	}
 
+	debug(bestScore);
 
-	// hashmap solution
-	// for (auto& ingridient : ingridientsSet) {
-	// 	int likes = likedIngridientsMap[ingridient];
-	// 	int disLikes = dislikedIngridientsMap[ingridient];
-	// 	if (likes >= disLikes) {
-	// 		optimalIngridients.push_back(ingridient);
-	// 		optimalIngridientsMap[ingridient] = true;
-	// 	} else if (disLikes <= DISLIKE_THRESHOLD) {
-	// 		optimalIngridients.push_back(ingridient);
-	// 		optimalIngridientsMap[ingridient] = true;
-	// 	}
-	// }
-
-	simulator(optimalIngridientsMap, customerList);
-	printOutput(optimalIngridients);
 
 	return 0;
 }
